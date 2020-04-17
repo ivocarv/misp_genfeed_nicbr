@@ -8,3 +8,5 @@ Requires:
 * urllib
 * shutil 
 * pymisp
+
+You can import feed locally or use server.py from pymisp feed generator from redis example for network feed.
