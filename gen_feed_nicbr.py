@@ -6,7 +6,7 @@ import sys
 from pymisp import ExpandedPyMISP, MISPEvent, MISPOrganisation
 
 # change this vars
-outputdir="/home/srcc/code/brasil_ips/misp_feed/"
+outputdir= "misp_feed/"
 #file format: ASN|ORG|CNPJ|CIDR1|CIDR2|...
 url="ftp://ftp.registro.br/pub/numeracao/origin/nicbr-asn-blk-latest.txt"
 org_uuid="PUT-DESIRED-UUID-HERE"
