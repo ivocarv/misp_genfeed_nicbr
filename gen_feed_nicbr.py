@@ -12,12 +12,12 @@ from pymisp import ExpandedPyMISP, MISPEvent, MISPOrganisation
 
 # Change this vars to reflect your structure
 # Output dir must exist
-outputdir="/home/srcc/code/brasil_ips/misp_feed/"
+outputdir="<your_feed_path>"
 # URL for Brazilian CIDR blocks per ASN. file format: ASN|ORG|CNPJ|CIDR1|CIDR2|...
 url="ftp://ftp.registro.br/pub/numeracao/origin/nicbr-asn-blk-latest.txt"
 # The name and uuid of the org for the created events. It should exist on your misp instance
-org_uuid="5e67795a-e434-43ea-b0b3-08f0ac1d000c"
-org_name="ORACULO"
+org_uuid="<your_org_uuid>"
+org_name="<your_org_name>"
 
 # ---- Functions
 def saveEvent(event):
