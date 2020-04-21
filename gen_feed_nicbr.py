@@ -2,24 +2,37 @@ import os
 import json
 import urllib.request as request
 import sys
+import time
 from pymisp import ExpandedPyMISP, MISPEvent, MISPOrganisation
 
 # REMARKS:
-# - The Event uuids and names are preserved. Hopefully MISP won't create duplicated events with multiple fetches
-# - Attribute uuids change each run. Hopefully MISP will ignore duplicates
+# - The Event uuids and names are preserved. MISP won't create duplicated events with multiple fetches
 # - Each update a new manifest and hashes file is created
+# - Timestamps are updated on changed events to force MISP to fetch the event JSONs
+# - ASN that are removed from file will be kept in disk but manifest will not reference them
 # - If the feed is remote you should have a webserver on the outputdir (ex: nginx)
 
 # Change this vars to reflect your structure
 # Output dir must exist
-outputdir="<your_feed_path>"
+outputdir="<feed output dir>"
 # URL for Brazilian CIDR blocks per ASN. file format: ASN|ORG|CNPJ|CIDR1|CIDR2|...
 url="ftp://ftp.registro.br/pub/numeracao/origin/nicbr-asn-blk-latest.txt"
 # The name and uuid of the org for the created events. It should exist on your misp instance
-org_uuid="<your_org_uuid>"
-org_name="<your_org_name>"
+org_uuid="<your org uuid>"
+org_name="<your org name>"
 
 # ---- Functions
+def loadEvent(uuid):
+# Load an Event from JSON file
+    try:
+        with open(os.path.join(outputdir, f'{uuid}.json'), 'r') as f:
+                old_event = json.load(f)
+                f.close()
+        return old_event
+    except Exception as e:
+        print(e)
+        sys.exit('Could not load event.')
+
 def saveEvent(event):
 # Saves an event to disk with name <uuid>.json
     try:
@@ -83,36 +96,58 @@ old_manifest = get_events_from_manifest()
 
 # We will recalculate all hashes again
 hashes = []
+now = int(time.time())
 
 for line in f:
+    event_changed = 0
     fields = line.split("|")
     ASN = fields.pop(0)
     ORG = fields.pop(0)
     CNPJ = fields.pop(0)
-    EVENT_NAME = str(ORG+ " " + CNPJ)
+    EVENT_NAME = str(ORG+ " " + CNPJ + " " + ASN)
     result_uuid = find_event(old_manifest, EVENT_NAME)
-    if result_uuid : # if event exists, get from manifest
+    if result_uuid : # if event exists, get from feed
         event = MISPEvent()
         event.uuid = result_uuid
-        event.from_dict(**old_manifest[result_uuid])
-        print("Atualizando evento: "+event.uuid+" "+event.info)
+        event.from_dict(**loadEvent(result_uuid))
+        print("Checking for updated values in Event: "+event.uuid+" "+event.info)
     else:   # event does not exist, generate a new one
         event = MISPEvent()
-        #event.id = len(old_manifest)+1
-        event.info = str(ORG+ " " + CNPJ)
+        event.info = EVENT_NAME
         event.analysis = 0
-        event.threat_level_id = 1
+        event.threat_level_id = 4
         event.published = 0
         event.orgc = MISPOrganisation()
         event.orgc.uuid = org_uuid
         event.orgc.name = org_name
-        print("CRIANDO NOVO EVENTO: "+event.uuid+" "+event.info)
-    event.add_attribute("AS",str(ASN)) # Add AS Number to Event
+        event_changed = 1
+        event.add_attribute("AS",str(ASN))
+        print("Creating new Event: "+event.uuid+" "+event.info)
+    # if event has attributes iterate them and see what changed
+    blocks = []
+    for att in event['Attribute']:
+        if att['type'] == 'AS':
+            print ("Attribute ASN found: "+ att['value'])
+        if att['type'] == 'ip-dst':
+            blocks.append(att['value'])
     for field in fields:  # Add CIDR blocks
-        event.add_attribute("ip-dst",str(field))
+        if field not in blocks:
+            event.add_attribute("ip-dst",str(field))
+            print("Updated CIDR Block: "+field+ " Event: "+event.uuid+" "+event.info)
+            event_changed = 1
+            event.timestamp = now
+        else:
+            blocks.remove(field)
+    for rem in blocks: # are there any blocks left?
+        for att in event['Attribute']:
+            if att['value'] == rem:
+                event.delete_attribute(att.uuid)
+                print("Deleted CIDR Block: "+rem+" Event: "+event.uuid+" "+event.info)
+                event_changed = 1
+                event.timestamp = now
     e_feed = event.to_feed(with_meta=True)
     hashes += [[h, event.uuid] for h in e_feed['Event'].pop('_hashes')]
     manifest.update(e_feed['Event'].pop('_manifest'))
-    saveEvent(e_feed)
+    if event_changed: saveEvent(e_feed)
 saveManifest(manifest)
 saveHashes(hashes)
