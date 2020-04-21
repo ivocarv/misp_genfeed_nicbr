@@ -9,4 +9,4 @@ Requires:
 * shutil 
 * pymisp
 
-You can import feed locally or use server.py from pymisp feed generator from redis example for network feed.
+You can import feed locally or use a webserver for network feed.
