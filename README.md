@@ -6,7 +6,6 @@ Downloads CIDR blocks and ASN from ftp://ftp.registro.br/pub/numeracao/origin/ni
 Requires:
 * json
 * urllib
-* shutil 
 * pymisp
 
 You can import feed locally or use a webserver for network feed.
