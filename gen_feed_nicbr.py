@@ -14,7 +14,7 @@ from pymisp import ExpandedPyMISP, MISPEvent, MISPOrganisation
 
 # Change this vars to reflect your structure
 # Output dir must exist
-outputdir="<feed output dir>"
+outputdir="../misp_feed/"
 # URL for Brazilian CIDR blocks per ASN. file format: ASN|ORG|CNPJ|CIDR1|CIDR2|...
 url="ftp://ftp.registro.br/pub/numeracao/origin/nicbr-asn-blk-latest.txt"
 # The name and uuid of the org for the created events. It should exist on your misp instance
@@ -73,29 +73,32 @@ def get_events_from_manifest():
                 manifest[event_uuid] = event_json
             return manifest
     except FileNotFoundError as e:
-        print('Manifest not found, generating a fresh one')
+        print('Manifest not found, creating a new one')
         return {}
 
 def find_event(manifest, name):
 # Returns the uuid of an event with particular INFO field
     for event_uuid in manifest:
-        if manifest[event_uuid]['info'] == name:
+        #if manifest[event_uuid]['info'] == name:
+        evt_name = str(manifest[event_uuid]['info'])
+        if evt_name.find(name) >= 0:
             return event_uuid
 
 # --- Main program
 # Start with empty manifest
 manifest={}
 # Get URL and convert to str for iteration
-req = request.Request(url)
+req = request.Request(url) 
 with request.urlopen(req) as response:
-        response = response.read()
+	response = response.read()
 f = response.decode().splitlines()
 
 # Open current manifest or get empty one
 old_manifest = get_events_from_manifest()
-
+    
 # We will recalculate all hashes again
 hashes = []
+# changed events will have timestamp updated
 now = int(time.time())
 
 for line in f:
@@ -105,23 +108,28 @@ for line in f:
     ORG = fields.pop(0)
     CNPJ = fields.pop(0)
     EVENT_NAME = str(ORG+ " " + CNPJ + " " + ASN)
-    result_uuid = find_event(old_manifest, EVENT_NAME)
+    result_uuid = find_event(old_manifest, ASN) #search substring for ASN, this detects changed event names
     if result_uuid : # if event exists, get from feed
         event = MISPEvent()
         event.uuid = result_uuid
         event.from_dict(**loadEvent(result_uuid))
         print("Checking for updated values in Event: "+event.uuid+" "+event.info)
+        if event.info != EVENT_NAME : # information on event info is the same?
+            print("Event name changed, updading... old:"+event.info+" new:"+EVENT_NAME)
+            event.info = EVENT_NAME
+            event_changed = 1
+            event.timestamp = now
     else:   # event does not exist, generate a new one
         event = MISPEvent()
         event.info = EVENT_NAME
-        event.analysis = 0
+        event.analysis = 0  # events are created with Threat level Undefined and Analysis Initial
         event.threat_level_id = 4
-        event.published = 0
+        event.published = 0 # events are created unpublished
         event.orgc = MISPOrganisation()
         event.orgc.uuid = org_uuid
         event.orgc.name = org_name
         event_changed = 1
-        event.add_attribute("AS",str(ASN))
+        event.add_attribute("AS",str(ASN)) # each event has always one ASN
         print("Creating new Event: "+event.uuid+" "+event.info)
     # if event has attributes iterate them and see what changed
     blocks = []
@@ -138,7 +146,7 @@ for line in f:
             event.timestamp = now
         else:
             blocks.remove(field)
-    for rem in blocks: # are there any blocks left?
+    for rem in blocks: # CIDR blocks that were removed from ASN
         for att in event['Attribute']:
             if att['value'] == rem:
                 event.delete_attribute(att.uuid)
@@ -148,6 +156,10 @@ for line in f:
     e_feed = event.to_feed(with_meta=True)
     hashes += [[h, event.uuid] for h in e_feed['Event'].pop('_hashes')]
     manifest.update(e_feed['Event'].pop('_manifest'))
-    if event_changed: saveEvent(e_feed)
+    if event_changed: 
+        print("Saved Event: "+event.uuid+" "+event.info)
+        saveEvent(e_feed)
+print("Saving manifest...")
 saveManifest(manifest)
+print("Saving hashes...")
 saveHashes(hashes)
