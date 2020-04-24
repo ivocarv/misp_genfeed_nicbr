@@ -73,7 +73,7 @@ def get_events_from_manifest():
                 manifest[event_uuid] = event_json
             return manifest
     except FileNotFoundError as e:
-        print('Manifest not found, creating a new one')
+        print('Manifest not found, creating a new one'+e)
         return {}
 
 def find_event(manifest, name):
