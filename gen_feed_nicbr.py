@@ -11,7 +11,7 @@ from pymisp import ExpandedPyMISP, MISPEvent, MISPOrganisation
 # - Timestamps are updated on changed events to force MISP to fetch the event JSONs
 # - ASN that are removed from file will be kept in disk but manifest will not reference them
 # - If the feed is remote you should have a webserver on the outputdir (ex: nginx)
-
+#
 # Change this vars to reflect your structure
 # Output dir must exist
 outputdir="../misp_feed/"
