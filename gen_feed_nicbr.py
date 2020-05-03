@@ -20,7 +20,8 @@ url="ftp://ftp.registro.br/pub/numeracao/origin/nicbr-asn-blk-latest.txt"
 # The name and uuid of the org for the created events. It should exist on your misp instance
 org_uuid="<your org uuid>"
 org_name="<your org name>"
-
+#proxy_host = {'ftp': '<your proxy and port>'}
+proxy_host = {}
 # ---- Functions
 def loadEvent(uuid):
 # Load an Event from JSON file
@@ -87,6 +88,10 @@ def find_event(manifest, name):
 # --- Main program
 # Start with empty manifest
 manifest={}
+# Proxy support
+proxy_support = request.ProxyHandler(proxy_host)
+opener = request.build_opener(proxy_support)
+request.install_opener(opener)
 # Get URL and convert to str for iteration
 req = request.Request(url) 
 with request.urlopen(req) as response:
