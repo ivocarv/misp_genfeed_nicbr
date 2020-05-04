@@ -15,3 +15,4 @@ You can import feed locally or use a webserver for network feed.
 CHANGELOG:
 
 V0.8 - Included support for proxy (trying to solve contrab environment problems)
+v0.8.1 - Adjusted locale to UTF-8 (cron sometimes don't use the same locale as shell)
