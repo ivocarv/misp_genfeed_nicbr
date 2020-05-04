@@ -3,6 +3,7 @@ import json
 import urllib.request as request
 import sys
 import time
+import locale
 from pymisp import ExpandedPyMISP, MISPEvent, MISPOrganisation
 
 # REMARKS:
@@ -86,6 +87,8 @@ def find_event(manifest, name):
             return event_uuid
 
 # --- Main program
+# Adjust locale
+locale.setlocale(locale.LC_ALL, 'C.UTF-8')
 # Start with empty manifest
 manifest={}
 # Proxy support
